@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
 firebase_api_key = os.getenv("FIREBASE_API_KEY")
+firebase_key_json = os.environ.get("FIREBASE_API_KEY_DICT")
 
 SIGNUP_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={firebase_api_key}"
 LOGIN_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={firebase_api_key}"
@@ -21,8 +22,9 @@ ACCOUNT_INFO_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?k
 
 # ===== Initialize Firebase =====
 if not firebase_admin._apps:
-    cred = credentials.Certificate("firebase_key.json")
-    firebase_admin.initialize_app(cred)
+    cred = credentials.Certificate(firebase_key_json)
+    firebase_cred_dict = json.loads(firebase_key_json)
+    firebase_admin.initialize_app(firebase_cred_dict)
 db = firestore.client()
 
 # ===== Auth helpers =====
