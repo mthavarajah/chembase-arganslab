@@ -402,12 +402,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/fireba
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC2Xv5J9MzuTZYc8kkn0I82zY07AqFuKsU",
-  authDomain: "chemsafe-e06c4.firebaseapp.com",
-  projectId: "chemsafe-e06c4",
-  storageBucket: "chemsafe-e06c4.appspot.com",
-  messagingSenderId: "875289936133",
-  appId: "1:875289936133:web:10fcaea53c52a0fcef376c"
+  apiKey: "{{ firebase_config['apiKey'] }}",
+  authDomain: "{{ firebase_config['authDomain'] }}",
+  projectId: "{{ firebase_config['projectId'] }}",
+  storageBucket: "{{ firebase_config['storageBucket'] }}",
+  messagingSenderId: "{{ firebase_config['messagingSenderId'] }}",
+  appId: "{{ firebase_config['appId'] }}"
 };
 
 const app = initializeApp(firebaseConfig);
