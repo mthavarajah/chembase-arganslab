@@ -1,0 +1,204 @@
+/* ===== General Styles ===== */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 20px 30px;
+    background-color: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 8px;
+}
+
+/* ===== Headings ===== */
+h2, h3 {
+    margin-top: 0;
+    color: #222;
+}
+
+h2 {
+    font-size: 28px;
+    margin-bottom: 20px;
+}
+
+h3 {
+    font-size: 22px;
+    margin-bottom: 15px;
+}
+
+/* ===== Forms ===== */
+form {
+    margin-bottom: 20px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+    width: 100%;
+    padding: 10px 12px;
+    margin: 8px 0;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+    box-sizing: border-box;
+    transition: border 0.2s;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus {
+    border-color: #007bff;
+    outline: none;
+}
+
+button {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 16px;
+    margin-top: 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+/* ===== Links ===== */
+a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.logout-btn {
+    display: inline-block;
+    margin-top: 10px;
+    background-color: #dc3545;
+}
+
+.logout-btn:hover {
+    background-color: #a71d2a;
+}
+
+/* ===== Tables ===== */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background-color: #f1f1f1;
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+/* Inline forms for delete buttons */
+.inline-form {
+    display: inline;
+}
+
+/* ===== Messages ===== */
+ul.messages {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+}
+
+ul.messages li {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    padding: 8px 12px;
+    margin-bottom: 5px;
+    border-radius: 5px;
+}
+
+/* ===== Table Page Inputs ===== */
+#dataTable input[type="text"] {
+    width: 100%;
+    padding: 6px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* ===== Add Table Form ===== */
+.add-table-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.add-table-form input {
+    flex: 1;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 600px) {
+    .container {
+        padding: 15px 20px;
+    }
+
+    button {
+        width: 100%;
+        margin-top: 8px;
+    }
+
+    .add-table-form {
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .inline-form button {
+        width: 100%;
+        margin-top: 5px;
+    }
+}
+
+/* ===== Action Buttons ===== */
+button {
+    background-color: #007bff; /* default blue */
+    color: white;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+/* Red button for Logout */
+button.logout-btn {
+    background-color: #dc3545;
+}
+
+button.logout-btn:hover {
+    background-color: #a71d2a;
+}

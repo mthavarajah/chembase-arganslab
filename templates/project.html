@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Project: {{ project_name }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8f9fa; color: #212529; }
+    .btn-add { background-color: #0d6efd; color: white; }
+    .btn-add:hover { background-color: #0b5ed7; }
+    .btn-save { background-color: #6c757d; color: white; }
+    .btn-save:hover { background-color: #5c636a; }
+    .btn-delete-row { background-color: #dc3545; color: white; }
+    .btn-delete-row:hover { background-color: #b02a37; }
+    .btn-column { background-color: #198754; color: white; }
+    .btn-column:hover { background-color: #157347; }
+    .table-actions { margin-top: 15px; }
+    #dataTable th, #dataTable td { vertical-align: middle; }
+    .comment-section { margin-top: 30px; }
+    .mention-suggestions { position: absolute; z-index: 1000; background: #fff; border: 1px solid #ddd; max-height: 180px; overflow-y: auto; width: 220px; }
+    .mention-suggestions div { padding: 6px 8px; cursor: pointer; }
+    .mention-suggestions div:hover { background: #f1f1f1; }
+    .cell-ref-badge { background: #fff3bf; border: 1px solid #ffe58a; padding: 2px 6px; border-radius: 4px; cursor: pointer; color: #7a4f01; }
+    .cell-highlight { background: yellow !important; transition: background 0.3s ease; }
+  </style>
+</head>
+<body>
+<div class="container my-5">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Project: {{ project_name }}</h2>
+    <a href="{{ url_for('team_projects', team_id=team_id) }}" class="btn btn-secondary">← Back</a>
+  </div>
+
+  <!-- ===== MAIN TABLE FORM ===== -->
+  <form method="POST" id="projectForm">
+    <!-- Hidden input to let server know current number of columns -->
+    <input type="hidden" id="colCountInput" name="col_count" value="{{ headers|length }}">
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover align-middle" id="dataTable">
+        <thead class="table-light">
+          <tr id="headerRow">
+            {% for h in headers %}
+              <th ondblclick="renameColumn(this)">{{ h }}</th>
+            {% endfor %}
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in range(project|length) %}
+            <tr>
+              {% for j in range(headers|length) %}
+                {% set input_name = "row" ~ i ~ "col" ~ j %}
+                {% set value = project[i]['col' + (j+1)|string] %}
+                {% if not can_edit %}
+                  <td><input type="text" name="{{ input_name }}" class="form-control form-control-sm" value="{{ value }}" readonly></td>
+                {% else %}
+                  <td><input type="text" name="{{ input_name }}" class="form-control form-control-sm" value="{{ value }}"></td>
+                {% endif %}
+              {% endfor %}
+              <td class="text-end">
+                {% if can_edit %}
+                  <button type="button" class="btn btn-sm btn-delete-row" onclick="deleteRow(this)">Delete</button>
+                {% else %}
+                  <button type="button" class="btn btn-sm btn-delete-row" disabled>Delete</button>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 table-actions">
+      {% if can_edit %}
+        <button type="button" class="btn btn-add" onclick="addRow()">Add Row</button>
+        <button type="button" class="btn btn-column" onclick="addColumn()">Add Column</button>
+        <button type="button" class="btn btn-danger" onclick="deleteLastColumn()">Delete Last Column</button>
+        <button type="submit" class="btn btn-save">Save Changes</button>
+      {% endif %}
+      <a href="{{ url_for('export_csv', team_id=team_id, project_id=project_id) }}" class="btn btn-success">Export CSV</a>
+    </div>
+  </form>
+
+  <!-- ===== UPLOAD FORM (SEPARATE) ===== -->
+  {% if can_edit %}
+  <div class="mt-3">
+    <form method="POST" action="{{ url_for('upload_csv', team_id=team_id, project_id=project_id) }}" enctype="multipart/form-data" class="d-flex align-items-center gap-2">
+      <input type="file" name="csv_file" accept=".csv" required class="form-control form-control-sm w-auto">
+      <button type="submit" class="btn btn-primary btn-sm">Upload CSV</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- ===== COMMENTS ===== -->
+  <div class="comment-section">
+    <h4>Comments</h4>
+
+    <!-- Comment form -->
+    {% if can_comment %}
+    <form method="POST" action="{{ url_for('add_comment', team_id=team_id, project_id=project_id) }}" id="commentForm" class="mb-3 position-relative">
+      <div class="mb-2">
+        <textarea id="commentInput" name="comment_text" class="form-control" rows="2" placeholder="Write a comment — use @ to mention someone"></textarea>
+        <div id="mentionBox" class="mention-suggestions" style="display:none;"></div>
+      </div>
+      <div class="d-flex gap-2">
+        <div>
+          <label class="form-label me-2">Insert cell ref:</label>
+          <select id="cellRow" class="form-select form-select-sm d-inline-block" style="width:100px;"></select>
+          <select id="cellCol" class="form-select form-select-sm d-inline-block" style="width:120px;"></select>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="insertCellRef()">Insert</button>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Comment</button>
+      </div>
+    </form>
+    {% else %}
+      <p class="text-muted">You do not have permission to comment on this project.</p>
+    {% endif %}
+
+    <!-- Comments list -->
+    <ul class="list-group" id="commentsList">
+      {% if comments|length == 0 %}
+        <li class="list-group-item text-muted">No comments yet.</li>
+      {% else %}
+        {% for comment in comments %}
+          <li class="list-group-item">
+            <strong>{{ comment.user_name }}:</strong>
+            <div class="comment-text" data-text="{{ comment.text|e }}"></div>
+            <br><small class="text-muted">{{ comment.timestamp|format_comment_time }}</small>
+          </li>
+        {% endfor %}
+      {% endif %}
+    </ul>
+  </div>
+
+</div>
+
+<script>
+/* ---------------------------
+   client-side data from server
+   --------------------------- */
+const TEAM_MEMBERS = {{ members|tojson }};
+const CAN_COMMENT = {{ 'true' if can_comment else 'false' }};
+const CAN_EDIT = {{ 'true' if can_edit else 'false' }};
+
+/* ---------------------------
+   helpers: update col count
+   --------------------------- */
+function updateColCount() {
+  const colCount = document.querySelectorAll("#headerRow th").length - 1;
+  document.getElementById("colCountInput").value = colCount;
+}
+updateColCount();
+
+/* ---------------------------
+   table row/column manipulation
+   --------------------------- */
+function addRow() {
+  const tbody = document.querySelector("#dataTable tbody");
+  const colCount = document.querySelectorAll("#headerRow th").length - 1;
+  const rowIndex = tbody.rows.length;
+  const row = document.createElement("tr");
+
+  for (let j = 0; j < colCount; j++) {
+    const cell = document.createElement("td");
+    cell.innerHTML = `<input type="text" class="form-control form-control-sm" name="new${rowIndex}col${j}" value="">`;
+    row.appendChild(cell);
+  }
+
+  const actionCell = document.createElement("td");
+  actionCell.classList.add("text-end");
+  actionCell.innerHTML = `<button type="button" class="btn btn-sm btn-delete-row" onclick="deleteRow(this)">Delete</button>`;
+  row.appendChild(actionCell);
+  tbody.appendChild(row);
+}
+
+function deleteRow(btn) {
+  btn.closest("tr").remove();
+}
+
+function addColumn() {
+  const headerRow = document.getElementById("headerRow");
+  const thCount = headerRow.querySelectorAll("th").length - 1;
+  const newHeader = document.createElement("th");
+  newHeader.textContent = `Column ${thCount + 1}`;
+  newHeader.ondblclick = function() { renameColumn(newHeader); };
+  headerRow.insertBefore(newHeader, headerRow.lastElementChild);
+
+  const tbody = document.querySelector("#dataTable tbody");
+  for (const row of tbody.rows) {
+    const td = document.createElement("td");
+    // use row.rowIndex-1 to build stable name when saving; server supports new{i}col{j} names
+    const ridx = Array.prototype.indexOf.call(tbody.rows, row);
+    td.innerHTML = `<input type="text" class="form-control form-control-sm" name="row${ridx}col${thCount}" value="">`;
+    row.insertBefore(td, row.lastElementChild);
+  }
+  updateColCount();
+  populateCellSelectors();
+}
+
+function deleteLastColumn() {
+  const headerRow = document.getElementById("headerRow");
+  const ths = headerRow.querySelectorAll("th");
+  if (ths.length <= 2) {
+    alert("Cannot delete all columns.");
+    return;
+  }
+  const lastColIndex = ths.length - 2;
+  headerRow.removeChild(ths[lastColIndex]);
+
+  const tbody = document.querySelector("#dataTable tbody");
+  for (const row of tbody.rows) {
+    row.deleteCell(lastColIndex);
+  }
+  updateColCount();
+  populateCellSelectors();
+}
+
+/* ---------------------------
+   column rename (double-click)
+   --------------------------- */
+function renameColumn(thElement) {
+  // ignore Action column
+  const headerRow = document.getElementById("headerRow");
+  if (thElement === headerRow.lastElementChild) return;
+
+  const oldName = thElement.textContent.trim();
+  const input = document.createElement("input");
+  input.type = "text";
+  input.classList.add("form-control", "form-control-sm");
+  input.value = oldName;
+  thElement.textContent = "";
+  thElement.appendChild(input);
+  input.focus();
+
+  input.addEventListener("blur", function() {
+    const newName = input.value.trim() || oldName;
+    thElement.textContent = newName;
+  });
+
+  input.addEventListener("keydown", function(e) {
+    if (e.key === "Enter") input.blur();
+  });
+}
+
+/* ---------------------------
+   comment mentions autocomplete
+   --------------------------- */
+const commentInput = document.getElementById("commentInput");
+const mentionBox = document.getElementById("mentionBox");
+
+if (commentInput) {
+  commentInput.addEventListener("input", handleMentionTyping);
+  document.addEventListener("click", (e) => {
+    if (!mentionBox.contains(e.target) && e.target !== commentInput) mentionBox.style.display = "none";
+  });
+}
+
+function handleMentionTyping(e) {
+  const cursorPos = commentInput.selectionStart;
+  const textBefore = commentInput.value.slice(0, cursorPos);
+  const atIndex = textBefore.lastIndexOf("@");
+  if (atIndex === -1) { mentionBox.style.display = "none"; return; }
+  const query = textBefore.slice(atIndex + 1).toLowerCase();
+  // build suggestions
+  const matches = TEAM_MEMBERS.filter(m => m.name.toLowerCase().includes(query)).slice(0, 8);
+  if (matches.length === 0) { mentionBox.style.display = "none"; return; }
+
+  mentionBox.innerHTML = "";
+  matches.forEach(m => {
+    const row = document.createElement("div");
+    row.textContent = m.name;
+    row.onclick = () => insertMentionAtCursor(m.name, atIndex);
+    mentionBox.appendChild(row);
+  });
+
+  // position mentionBox near textarea (simple placement)
+  const rect = commentInput.getBoundingClientRect();
+  mentionBox.style.top = (rect.bottom + window.scrollY) + "px";
+  mentionBox.style.left = (rect.left + window.scrollX) + "px";
+  mentionBox.style.display = "block";
+}
+
+function insertMentionAtCursor(name, atIndex) {
+  const value = commentInput.value;
+  const before = value.slice(0, atIndex);
+  const afterCursor = value.slice(commentInput.selectionStart);
+  commentInput.value = before + "@" + name + " " + afterCursor;
+  mentionBox.style.display = "none";
+  commentInput.focus();
+}
+
+/* ---------------------------
+   cell reference insertion
+   --------------------------- */
+function populateCellSelectors() {
+  const tbody = document.querySelector("#dataTable tbody");
+  const rowSelect = document.getElementById("cellRow");
+  const colSelect = document.getElementById("cellCol");
+  if (!rowSelect || !colSelect) return;
+
+  // clear
+  rowSelect.innerHTML = "";
+  colSelect.innerHTML = "";
+
+  const rows = tbody.rows.length || 0;
+  const cols = document.querySelectorAll("#headerRow th").length - 1;
+
+  for (let r = 1; r <= Math.max(rows, 1); r++) {
+    const opt = document.createElement("option");
+    opt.value = r;
+    opt.text = `Row ${r}`;
+    rowSelect.appendChild(opt);
+  }
+  for (let c = 1; c <= Math.max(cols, 1); c++) {
+    const opt = document.createElement("option");
+    opt.value = c;
+    opt.text = `Column ${c}`;
+    colSelect.appendChild(opt);
+  }
+}
+populateCellSelectors();
+
+function insertCellRef() {
+  const r = document.getElementById("cellRow").value;
+  const c = document.getElementById("cellCol").value;
+  if (!r || !c) return;
+  const token = `[[CELL:${r},${c}]]`;
+  const cur = commentInput.selectionStart || commentInput.value.length;
+  commentInput.value = commentInput.value.slice(0, cur) + token + commentInput.value.slice(cur);
+  commentInput.focus();
+}
+
+/* ---------------------------
+   render comments: parse cell tokens & mentions
+   --------------------------- */
+function parseCommentText(raw) {
+  // escape HTML first
+  const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  let text = escapeHtml(raw);
+
+  // convert [[CELL:r,c]] tokens to clickable badge
+  text = text.replace(/\[\[CELL:(\d+),(\d+)\]\]/g, function(_, r, c) {
+    return `<span class="cell-ref-badge" data-row="${r}" data-col="${c}">Row${r}Col${c}</span>`;
+  });
+
+  // convert @mentions (simple) - link to nothing but styled
+  text = text.replace(/@([A-Za-z0-9 _\.\-]+)/g, function(_, name) {
+    // optionally, find member and wrap with span
+    return `<strong>@${escapeHtml(name)}</strong>`;
+  });
+
+  return text;
+}
+
+function attachCommentInteractions() {
+  document.querySelectorAll(".comment-text").forEach(div => {
+    const raw = div.dataset.text || "";
+    div.innerHTML = parseCommentText(raw);
+
+    // attach click handlers for cell refs
+    div.querySelectorAll(".cell-ref-badge").forEach(b => {
+      b.addEventListener("click", () => {
+        const r = parseInt(b.getAttribute("data-row"), 10);
+        const c = parseInt(b.getAttribute("data-col"), 10);
+        // scroll to cell
+        const tbody = document.querySelector("#dataTable tbody");
+        if (!tbody) return;
+        const rowIdx = r - 1;
+        const colIdx = c - 1;
+        if (rowIdx < 0 || colIdx < 0 || rowIdx >= tbody.rows.length) {
+          alert("Referenced cell not present in table.");
+          return;
+        }
+        const cell = tbody.rows[rowIdx].cells[colIdx];
+        if (!cell) { alert("Referenced cell not present in table."); return; }
+
+        cell.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
+        // flash highlight
+        cell.classList.add("cell-highlight");
+        setTimeout(() => cell.classList.remove("cell-highlight"), 2200);
+      });
+    });
+  });
+}
+attachCommentInteractions();
+
+/* update helpers on DOM changes */
+const observer = new MutationObserver(() => {
+  updateColCount();
+  populateCellSelectors();
+  attachCommentInteractions();
+});
+observer.observe(document.getElementById("dataTable"), { childList: true, subtree: true });
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Firebase SDKs -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC2Xv5J9MzuTZYc8kkn0I82zY07AqFuKsU",
+  authDomain: "chemsafe-e06c4.firebaseapp.com",
+  projectId: "chemsafe-e06c4",
+  storageBucket: "chemsafe-e06c4.appspot.com",
+  messagingSenderId: "875289936133",
+  appId: "1:875289936133:web:10fcaea53c52a0fcef376c"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const commentInput = document.getElementById("commentInput");
+const mentionBox = document.getElementById("mentionBox");
+const CURRENT_TEAM_ID = "{{ team_id }}";
+let teamMembers = [];
+
+async function getTeamMembers(teamId) {
+  try {
+    const teamRef = doc(db, "teams", teamId);
+    const teamSnap = await getDoc(teamRef);
+    if (!teamSnap.exists()) return [];
+
+    const teamData = teamSnap.data();
+    const userIds = [teamData.owner, ...Object.keys(teamData.shared_with || {})];
+
+    const members = [];
+    for (const uid of userIds) {
+      const userRef = doc(db, "users", uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        members.push({
+          id: uid,
+          name: userSnap.data().name || "Unknown",
+          email: userSnap.data().email || "",
+          access: uid === teamData.owner ? "owner" : teamData.shared_with?.[uid] || "view"
+        });
+      }
+    }
+    return members;
+  } catch (err) {
+    console.error("Error fetching members:", err);
+    return [];
+  }
+}
+
+// Load members dynamically
+if (commentInput) {
+  getTeamMembers(CURRENT_TEAM_ID).then((members) => {
+    teamMembers = members;
+    console.log("Team members loaded:", teamMembers);
+  });
+
+  commentInput.addEventListener("input", handleMentionTyping);
+  document.addEventListener("click", (e) => {
+    if (!mentionBox.contains(e.target) && e.target !== commentInput) {
+      mentionBox.style.display = "none";
+    }
+  });
+}
+
+function handleMentionTyping() {
+  const cursorPos = commentInput.selectionStart;
+  const textBefore = commentInput.value.slice(0, cursorPos);
+  const atIndex = textBefore.lastIndexOf("@");
+  if (atIndex === -1) { mentionBox.style.display = "none"; return; }
+  const query = textBefore.slice(atIndex + 1).toLowerCase();
+
+  const matches = teamMembers.filter(m => m.name.toLowerCase().includes(query)).slice(0, 8);
+  if (matches.length === 0) { mentionBox.style.display = "none"; return; }
+
+  mentionBox.innerHTML = "";
+  matches.forEach(m => {
+    const row = document.createElement("div");
+    row.textContent = `${m.name} (${m.access})`;
+    row.onclick = () => insertMentionAtCursor(m.name, atIndex);
+    mentionBox.appendChild(row);
+  });
+
+  const rect = commentInput.getBoundingClientRect();
+  mentionBox.style.top = (rect.bottom + window.scrollY) + "px";
+  mentionBox.style.left = (rect.left + window.scrollX) + "px";
+  mentionBox.style.display = "block";
+}
+
+function insertMentionAtCursor(name, atIndex) {
+  const value = commentInput.value;
+  const before = value.slice(0, atIndex);
+  const afterCursor = value.slice(commentInput.selectionStart);
+  commentInput.value = before + "@" + name + " " + afterCursor;
+  mentionBox.style.display = "none";
+  commentInput.focus();
+}
+</script>
+
+</body>
+</html>
