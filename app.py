@@ -13,7 +13,12 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
 firebase_api_key = os.getenv("FIREBASE_API_KEY")
-firebase_key_json = os.environ.get("FIREBASE_API_KEY_DICT")
+firebase_project_id = os.environ.get("PROJECT_ID")
+firebase_private_key_id = os.environ.get("PRIVATE_KEY_ID")
+firebase_private_key = os.environ.get("PRIVATE_KEY")
+firebase_client_email = os.environ.get("CLIENT_EMAIL")
+firebase_client_id = os.environ.get("CLIENT_ID")
+firebase_cert = os.environ.get("CERT")
 
 SIGNUP_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={firebase_api_key}"
 LOGIN_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={firebase_api_key}"
@@ -22,9 +27,23 @@ ACCOUNT_INFO_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?k
 
 # ===== Initialize Firebase =====
 if not firebase_admin._apps:
-    cred = credentials.Certificate(firebase_key_json)
-    firebase_cred_dict = json.loads(firebase_key_json)
-    firebase_admin.initialize_app(firebase_cred_dict)
+    firebase_cred_dict = json.loads(
+        {
+            "type": "service_account",
+            "project_id": firebase_project_id,
+            "private_key_id": firebase_private_key_id,
+            "private_key": firebase_private_key,
+            "client_email": firebase_client_email,
+            "client_id": firebase_client_id,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": firebase_cert,
+            "universe_domain": "googleapis.com"
+        }
+        )
+    cred = credentials.Certificate(firebase_cred_dict)
+    firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 def index():
