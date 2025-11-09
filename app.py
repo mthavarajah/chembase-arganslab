@@ -27,6 +27,17 @@ if not firebase_admin._apps:
     firebase_admin.initialize_app(firebase_cred_dict)
 db = firestore.client()
 
+def index():
+    firebase_config = {
+        "apiKey": os.getenv("FIREBASE_API_KEY_1"),
+        "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN"),
+        "projectId": os.getenv("FIREBASE_PROJECT_ID"),
+        "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET"),
+        "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID"),
+        "appId": os.getenv("FIREBASE_APP_ID")
+    }
+    return render_template('index.html', firebase_config=firebase_config)
+
 # ===== Auth helpers =====
 def signup_user(name, email, password):
     payload = {"email": email, "password": password, "returnSecureToken": True}
